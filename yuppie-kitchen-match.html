@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Yuppiechef Kitchen Mathc!</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      /* General body styling */
+      body {
+        font-family: "Inter", sans-serif;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        background: linear-gradient(135deg, #f0f4f8, #e0e7ee);
+        margin: 0;
+        padding: 20px;
+        box-sizing: border-box;
+        color: #df0a8e;
+      }
+
+      /* Game container styling */
+      .game-container {
+        background-color: #edebe4;
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        padding: 40px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+        max-width: 90%;
+        width: 600px; /* Base width for the game area */
+      }
+
+      h1 {
+        color: #ec097a;
+        margin-bottom: 15px;
+        font-size: 2.5em;
+        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.05);
+        text-align: center;
+      }
+
+      .game-info {
+        display: flex;
+        justify-content: space-between;
+        width: 100%;
+        padding: 0 10px;
+        font-size: 1.2em;
+        font-weight: bold;
+        color: #ea087d;
+      }
+
+      /* Canvas styling */
+      canvas {
+        background-color: #ffffff; /* Light blue background for the game board */
+        border-radius: 10px;
+        box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.1);
+        display: block;
+        touch-action: none; /* Prevent default touch actions like scrolling */
+        outline: none; /* Remove focus outline */
+      }
+
+      /* Button styling */
+      .game-buttons {
+        display: flex;
+        gap: 15px;
+        margin-top: 10px;
+      }
+
+      button {
+        background: linear-gradient(145deg, #f30771, #f30771);
+        color: #edebe4;
+        border: none;
+        padding: 12px 25px;
+        border-radius: 20px;
+        font-size: 1.1em;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      button:hover {
+        background: linear-gradient(145deg, #f27c22, #f27c22);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        transform: translateY(-2px);
+      }
+
+      button:active {
+        transform: translateY(0);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      }
+
+      /* Message box styling */
+      .message-box {
+        background-color: rgba(255, 0, 111, 0.8);
+        color: white;
+        padding: 20px 30px;
+        border-radius: 10px;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 1000;
+        font-size: 1.5em;
+        text-align: center;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
+        display: none; /* Hidden by default */
+        animation: fadeIn 0.3s ease-out;
+      }
+
+      .message-box.show {
+        display: block;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translate(-50%, -60%);
+        }
+        to {
+          opacity: 1;
+          transform: translate(-50%, -50%);
+        }
+      }
+
+      /* Responsive adjustments */
+      @media (max-width: 600px) {
+        .game-container {
+          padding: 20px;
+          width: 100%;
+          max-width: 350px;
+        }
+
+        h1 {
+          font-size: 2em;
+        }
+
+        .game-info {
+          font-size: 1em;
+        }
+
+        button {
+          padding: 10px 20px;
+          font-size: 1em;
+        }
+
+        .message-box {
+          font-size: 1.2em;
+          padding: 15px 25px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="game-container">
+      <h1>
+        YUPPIECHEF <br />
+        KITCHEN MATCH
+      </h1>
+      <div class="game-info">
+        <span>SCORE: <span id="score">0</span></span>
+        <span>MOVES: <span id="moves">0</span></span>
+      </div>
+      <canvas id="gameCanvas"></canvas>
+      <div class="game-buttons">
+        <button id="newGameButton">RESTART</button>
+      </div>
+    </div>
+
+    <div id="messageBox" class="message-box"></div>
+
+    <script>
+      // Get canvas and context
+      const canvas = document.getElementById("gameCanvas");
+      const ctx = canvas.getContext("2d");
+      const scoreDisplay = document.getElementById("score");
+      const movesDisplay = document.getElementById("moves");
+      const newGameButton = document.getElementById("newGameButton");
+      const messageBox = document.getElementById("messageBox");
+
+      // Game configuration
+      const GRID_SIZE = 7; // 8x8 grid
+      const GEM_TYPES = 6; // Number of different gem types
+      const GEM_SIZE = 75; // Size of each gem in pixels
+      const BOARD_WIDTH = GRID_SIZE * GEM_SIZE;
+      const BOARD_HEIGHT = GRID_SIZE * GEM_SIZE;
+      const ANIMATION_SPEED = 150; // Milliseconds for swap/drop animation
+
+      // Game state variables
+      let board = [];
+      let score = 0;
+      let moves = 0;
+      let selectedGem = null; // Stores { row, col } of the first selected gem
+      let isAnimating = false; // Flag to prevent input during animation
+
+      // Custom SVG icons for gems
+      // Each SVG is a simple, distinct shape/color
+      const gemImagePaths = [
+        "icons/bowls-green.svg",
+        "icons/mug-orange.svg",
+        "icons/plate-pink.svg",
+        "icons/pot-yellow.svg",
+        "icons/smeg-mixer-red.svg",
+        "icons/wooden-spoon-blue.svg",
+      ];
+
+      // Store pre-rendered SVG images for drawing performance
+      const gemImages = [];
+      let imagesLoadedCount = 0;
+
+      /**
+       * Pre-loads image files (including SVGs) into Image objects.
+       */
+      function preloadImages() {
+        gemImagePaths.forEach((path, index) => {
+          const img = new Image();
+          img.onload = () => {
+            imagesLoadedCount++;
+            if (imagesLoadedCount === gemImagePaths.length) {
+              // All images loaded, start the game
+              initGame();
+            }
+          };
+          img.onerror = () => {
+            console.error(`Failed to load image: ${path}`);
+            // Handle error (e.g., display a broken image, use a default, or stop game)
+            // For simplicity, we'll just log the error and continue, but in a real game, you might want a more robust error handling.
+            imagesLoadedCount++; // Still increment to attempt to load remaining images
+            if (imagesLoadedCount === gemImagePaths.length) {
+              initGame();
+            }
+          };
+          img.src = path;
+          gemImages[index] = img;
+        });
+      }
+
+      /**
+       * Shows a temporary message box on the screen.
+       * @param {string} message The message to display.
+       * @param {number} duration The duration in milliseconds to show the message.
+       */
+      function showMessage(message, duration = 2000) {
+        messageBox.textContent = message;
+        messageBox.classList.add("show");
+        setTimeout(() => {
+          messageBox.classList.remove("show");
+        }, duration);
+      }
+
+      /**
+       * Initializes the game board with random gems.
+       * Ensures no initial matches are present.
+       */
+      function initBoard() {
+        board = [];
+        for (let r = 0; r < GRID_SIZE; r++) {
+          board[r] = [];
+          for (let c = 0; c < GRID_SIZE; c++) {
+            let gemType;
+            do {
+              gemType = Math.floor(Math.random() * GEM_TYPES);
+              board[r][c] = { type: gemType, row: r, col: c };
+            } while (checkInitialMatch(r, c)); // Use a specific check for initial board generation
+          }
+        }
+      }
+
+      /**
+       * Checks if a match exists at a given board position during initial board generation.
+       * This function only checks for matches ending at (row, col) using already placed gems.
+       * @param {number} row The row index.
+       * @param {number} col The column index.
+       * @returns {boolean} True if a match exists, false otherwise.
+       */
+      function checkInitialMatch(row, col) {
+        const type = board[row][col].type;
+
+        // Check horizontal match ending at (row, col)
+        if (
+          col >= 2 &&
+          board[row][col - 1].type === type &&
+          board[row][col - 2].type === type
+        ) {
+          return true;
+        }
+
+        // Check vertical match ending at (row, col)
+        if (
+          row >= 2 &&
+          board[row - 1][col].type === type &&
+          board[row - 2][col].type === type
+        ) {
+          return true;
+        }
+
+        return false;
+      }
+
+      /**
+       * Draws the entire game board and gems.
+       */
+      function drawBoard() {
+        ctx.clearRect(0, 0, BOARD_WIDTH, BOARD_HEIGHT); // Clear canvas
+
+        for (let r = 0; r < GRID_SIZE; r++) {
+          for (let c = 0; c < GRID_SIZE; c++) {
+            const gem = board[r][c];
+            if (gem) {
+              drawGem(gem, c * GEM_SIZE, r * GEM_SIZE);
+            }
+          }
+        }
+
+        // Draw selection indicator if a gem is selected
+        if (selectedGem) {
+          ctx.strokeStyle = "#fff"; // White border
+          ctx.lineWidth = 5;
+          ctx.strokeRect(
+            selectedGem.col * GEM_SIZE + 2.5,
+            selectedGem.row * GEM_SIZE + 2.5,
+            GEM_SIZE - 5,
+            GEM_SIZE - 5
+          );
+        }
+      }
+
+      /**
+       * Draws a single gem at specified pixel coordinates.
+       * @param {object} gem The gem object { type, row, col }.
+       * @param {number} x Pixel x-coordinate.
+       * @param {number} y Pixel y-coordinate.
+       */
+      function drawGem(gem, x, y) {
+        if (gemImages[gem.type]) {
+          ctx.drawImage(gemImages[gem.type], x, y, GEM_SIZE, GEM_SIZE);
+        }
+      }
+
+      /**
+       * Converts pixel coordinates to grid coordinates.
+       * @param {number} pixelX X-coordinate in pixels.
+       * @param {number} pixelY Y-coordinate in pixels.
+       * @returns {object} An object { row, col } or null if out of bounds.
+       */
+      function getGridCoords(pixelX, pixelY) {
+        const col = Math.floor(pixelX / GEM_SIZE);
+        const row = Math.floor(pixelY / GEM_SIZE);
+        if (row >= 0 && row < GRID_SIZE && col >= 0 && col < GRID_SIZE) {
+          return { row, col };
+        }
+        return null;
+      }
+
+      /**
+       * Handles a click/tap on the canvas.
+       * @param {MouseEvent|TouchEvent} event The event object.
+       */
+      function handleCanvasClick(event) {
+        if (isAnimating) return; // Prevent input during animation
+
+        const rect = canvas.getBoundingClientRect();
+        let clientX, clientY;
+
+        if (event.touches) {
+          // Handle touch events
+          clientX = event.touches[0].clientX;
+          clientY = event.touches[0].clientY;
+        } else {
+          // Handle mouse events
+          clientX = event.clientX;
+          clientY = event.clientY;
+        }
+
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+
+        const clickedCoords = getGridCoords(x, y);
+
+        if (!clickedCoords) return; // Clicked outside the board
+
+        if (!selectedGem) {
+          // First gem selected
+          selectedGem = clickedCoords;
+        } else {
+          // Second gem selected, attempt to swap
+          const secondGem = clickedCoords;
+
+          // Check if it's the same gem
+          if (
+            selectedGem.row === secondGem.row &&
+            selectedGem.col === secondGem.col
+          ) {
+            selectedGem = null; // Deselect
+          }
+          // Check if gems are adjacent
+          else if (isAdjacent(selectedGem, secondGem)) {
+            isAnimating = true; // Start animation flag
+            animateSwap(selectedGem, secondGem).then(() => {
+              swapGems(selectedGem, secondGem);
+              selectedGem = null; // Clear selection
+
+              // Check for matches after swap
+              const matches = findMatches();
+              if (matches.length > 0) {
+                processMatches(matches);
+              } else {
+                // No match, swap back
+                animateSwap(secondGem, selectedGem).then(() => {
+                  swapGems(secondGem, selectedGem); // Swap back
+                  isAnimating = false; // End animation
+                  drawBoard();
+                });
+              }
+            });
+          } else {
+            // Not adjacent, select the new gem as the first
+            selectedGem = secondGem;
+          }
+        }
+        drawBoard(); // Redraw to show selection
+      }
+
+      /**
+       * Checks if two gem coordinates are adjacent (horizontally or vertically).
+       * @param {object} gem1 { row, col }
+       * @param {object} gem2 { row, col }
+       * @returns {boolean} True if adjacent, false otherwise.
+       */
+      function isAdjacent(gem1, gem2) {
+        const rowDiff = Math.abs(gem1.row - gem2.row);
+        const colDiff = Math.abs(gem1.col - gem2.col);
+        return (
+          (rowDiff === 1 && colDiff === 0) || (rowDiff === 0 && colDiff === 1)
+        );
+      }
+
+      /**
+       * Swaps two gems on the board.
+       * @param {object} gem1Coords { row, col } of the first gem.
+       * @param {object} gem2Coords { row, col } of the second gem.
+       */
+      function swapGems(gem1Coords, gem2Coords) {
+        const tempGem = board[gem1Coords.row][gem1Coords.col];
+        board[gem1Coords.row][gem1Coords.col] =
+          board[gem2Coords.row][gem2Coords.col];
+        board[gem2Coords.row][gem2Coords.col] = tempGem;
+
+        // Update row/col properties of the actual gem objects for consistency
+        board[gem1Coords.row][gem1Coords.col].row = gem1Coords.row;
+        board[gem1Coords.row][gem1Coords.col].col = gem1Coords.col;
+        board[gem2Coords.row][gem2Coords.col].row = gem2Coords.row;
+        board[gem2Coords.row][gem2Coords.col].col = gem2Coords.col;
+      }
+
+      /**
+       * Animates the swapping of two gems.
+       * @param {object} gem1Coords { row, col }
+       * @param {object} gem2Coords { row, col }
+       * @returns {Promise<void>} A promise that resolves when the animation is complete.
+       */
+      function animateSwap(gem1Coords, gem2Coords) {
+        return new Promise((resolve) => {
+          const gem1 = board[gem1Coords.row][gem1Coords.col];
+          const gem2 = board[gem2Coords.row][gem2Coords.col];
+
+          const startX1 = gem1Coords.col * GEM_SIZE;
+          const startY1 = gem1Coords.row * GEM_SIZE;
+          const endX1 = gem2Coords.col * GEM_SIZE;
+          const endY1 = gem2Coords.row * GEM_SIZE;
+
+          const startX2 = gem2Coords.col * GEM_SIZE;
+          const startY2 = gem2Coords.row * GEM_SIZE;
+          const endX2 = gem1Coords.col * GEM_SIZE;
+          const endY2 = gem1Coords.row * GEM_SIZE;
+
+          let startTime = null;
+
+          function animate(currentTime) {
+            if (!startTime) startTime = currentTime;
+            const progress = (currentTime - startTime) / ANIMATION_SPEED;
+
+            if (progress < 1) {
+              ctx.clearRect(0, 0, BOARD_WIDTH, BOARD_HEIGHT); // Clear for animation
+              drawBoard(); // Draw static gems
+
+              // Calculate current positions
+              const currentX1 = startX1 + (endX1 - startX1) * progress;
+              const currentY1 = startY1 + (endY1 - startY1) * progress;
+              const currentX2 = startX2 + (endX2 - startX2) * progress;
+              const currentY2 = startY2 + (endY2 - startY2) * progress;
+
+              // Draw the moving gems
+              drawGem(gem1, currentX1, currentY1);
+              drawGem(gem2, currentX2, currentY2);
+
+              requestAnimationFrame(animate);
+            } else {
+              // Animation finished
+              drawBoard(); // Final draw of the board in its correct state
+              resolve();
+            }
+          }
+          requestAnimationFrame(animate);
+        });
+      }
+
+      /**
+       * Finds all horizontal and vertical matches of 3 or more gems.
+       * @returns {Array<object>} An array of gem coordinates { row, col } that are part of a match.
+       */
+      function findMatches() {
+        const matches = new Set(); // Use a Set to store unique gem coordinates as strings "row,col"
+
+        // Check horizontal matches
+        for (let r = 0; r < GRID_SIZE; r++) {
+          for (let c = 0; c < GRID_SIZE - 2; c++) {
+            const type = board[r][c].type;
+            if (
+              board[r][c + 1].type === type &&
+              board[r][c + 2].type === type
+            ) {
+              matches.add(`${r},${c}`);
+              matches.add(`${r},${c + 1}`);
+              matches.add(`${r},${c + 2}`);
+              // Extend match to the right if more than 3
+              let k = c + 3;
+              while (
+                k < GRID_SIZE &&
+                board[r][k] &&
+                board[r][k].type === type
+              ) {
+                // Added board[r][k] check
+                matches.add(`${r},${k}`);
+                k++;
+              }
+            }
+          }
+        }
+
+        // Check vertical matches
+        for (let c = 0; c < GRID_SIZE; c++) {
+          for (let r = 0; r < GRID_SIZE - 2; r++) {
+            const type = board[r][c].type;
+            if (
+              board[r + 1][c].type === type &&
+              board[r + 2][c].type === type
+            ) {
+              matches.add(`${r},${c}`);
+              matches.add(`${r + 1},${c}`);
+              matches.add(`${r + 2},${c}`);
+              // Extend match downwards if more than 3
+              let k = r + 3;
+              while (
+                k < GRID_SIZE &&
+                board[k][c] &&
+                board[k][c].type === type
+              ) {
+                // Added board[k][c] check
+                matches.add(`${k},${c}`);
+                k++;
+              }
+            }
+          }
+        }
+
+        // Convert Set back to an array of { row, col } objects
+        return Array.from(matches).map((coordStr) => {
+          const [row, col] = coordStr.split(",").map(Number);
+          return { row, col };
+        });
+      }
+
+      /**
+       * Processes matches: removes them, updates score, drops gems, and refills.
+       * This function calls itself recursively if new matches are formed after drops.
+       * @param {Array<object>} matches The array of matched gem coordinates.
+       */
+      function processMatches(matches) {
+        if (matches.length === 0) {
+          isAnimating = false; // End animation flag if no more matches
+          drawBoard();
+          checkGameOver();
+          return;
+        }
+
+        // Update score based on matches
+        score += matches.length * 10;
+        scoreDisplay.textContent = score;
+        moves++; // Increment moves only for successful swaps
+        movesDisplay.textContent = moves;
+
+        // Remove matched gems (set to null)
+        matches.forEach(({ row, col }) => {
+          board[row][col] = null;
+        });
+
+        drawBoard(); // Show board with gaps
+
+        // Animate drops, then fill, then check for new matches
+        animateDrops().then(() => {
+          fillEmptySpaces();
+          drawBoard();
+          // Recursively check for new matches after gems have dropped and new ones filled
+          const newMatches = findMatches();
+          if (newMatches.length > 0) {
+            setTimeout(() => processMatches(newMatches), ANIMATION_SPEED); // Delay for visual clarity
+          } else {
+            isAnimating = false; // No more matches, allow input
+            drawBoard();
+            checkGameOver();
+          }
+        });
+      }
+
+      /**
+       * Animates gems dropping down to fill empty spaces.
+       * @returns {Promise<void>} A promise that resolves when all drops are complete.
+       */
+      function animateDrops() {
+        return new Promise((resolve) => {
+          let dropsOccurred = false;
+          // No need for dropPromises array, just track if any drops occurred
+
+          for (let c = 0; c < GRID_SIZE; c++) {
+            let emptyCount = 0;
+            // Iterate from bottom to top
+            for (let r = GRID_SIZE - 1; r >= 0; r--) {
+              if (board[r][c] === null) {
+                emptyCount++;
+              } else if (emptyCount > 0) {
+                dropsOccurred = true;
+                // This gem needs to drop 'emptyCount' rows down
+                const gemToMove = board[r][c];
+
+                // Store initial Y position for animation
+                gemToMove._animStartY = r * GEM_SIZE;
+                // Calculate final Y position after dropping
+                gemToMove._animEndY = (r + emptyCount) * GEM_SIZE;
+
+                // Update the board array to reflect the new position
+                board[r + emptyCount][c] = gemToMove;
+                board[r][c] = null; // Clear the old position
+
+                // Update gem's internal row property
+                gemToMove.row = r + emptyCount;
+              }
+            }
+          }
+
+          if (!dropsOccurred) {
+            resolve(); // No drops, resolve immediately
+            return;
+          }
+
+          let startTime = null;
+          function animate(currentTime) {
+            if (!startTime) startTime = currentTime;
+            const progress = (currentTime - startTime) / ANIMATION_SPEED;
+
+            ctx.clearRect(0, 0, BOARD_WIDTH, BOARD_HEIGHT); // Clear canvas for redraw
+            // Draw all gems, using animation positions for those that are moving
+            for (let r = 0; r < GRID_SIZE; r++) {
+              for (let c = 0; c < GRID_SIZE; c++) {
+                const gem = board[r][c];
+                if (gem) {
+                  let drawX = c * GEM_SIZE;
+                  let drawY = r * GEM_SIZE;
+
+                  // If the gem has animation properties, calculate its current Y
+                  if (
+                    gem._animStartY !== undefined &&
+                    gem._animEndY !== undefined
+                  ) {
+                    drawY =
+                      gem._animStartY +
+                      (gem._animEndY - gem._animStartY) * progress;
+                  }
+                  drawGem(gem, drawX, drawY);
+                }
+              }
+            }
+
+            if (progress < 1) {
+              requestAnimationFrame(animate);
+            } else {
+              // Animation complete, clean up animation properties
+              for (let r = 0; r < GRID_SIZE; r++) {
+                for (let c = 0; c < GRID_SIZE; c++) {
+                  const gem = board[r][c];
+                  if (gem && gem._animStartY !== undefined) {
+                    delete gem._animStartY;
+                    delete gem._animEndY;
+                  }
+                }
+              }
+              resolve();
+            }
+          }
+          requestAnimationFrame(animate);
+        });
+      }
+
+      /**
+       * Fills any null spaces at the top of the board with new random gems.
+       */
+      function fillEmptySpaces() {
+        for (let c = 0; c < GRID_SIZE; c++) {
+          for (let r = 0; r < GRID_SIZE; r++) {
+            if (board[r][c] === null) {
+              const gemType = Math.floor(Math.random() * GEM_TYPES);
+              board[r][c] = { type: gemType, row: r, col: c };
+            }
+          }
+        }
+      }
+
+      /**
+       * Checks if there are any possible moves left on the board.
+       * If not, the game is over.
+       */
+      function checkGameOver() {
+        let possibleMoves = false;
+        // Iterate through each gem and try to swap with its right and bottom neighbors
+        for (let r = 0; r < GRID_SIZE; r++) {
+          for (let c = 0; c < GRID_SIZE; c++) {
+            // Try swapping with right neighbor
+            if (c + 1 < GRID_SIZE) {
+              // Temporarily swap the gems
+              swapGems({ row: r, col: c }, { row: r, col: c + 1 });
+              // Check if this swap creates any matches
+              if (findMatches().length > 0) {
+                possibleMoves = true;
+              }
+              // Swap them back to restore the original board state
+              swapGems({ row: r, col: c }, { row: r, col: c + 1 });
+              if (possibleMoves) break; // Found a move, no need to check further
+            }
+
+            // Try swapping with bottom neighbor
+            if (r + 1 < GRID_SIZE) {
+              // Temporarily swap the gems
+              swapGems({ row: r, col: c }, { row: r + 1, col: c });
+              // Check if this swap creates any matches
+              if (findMatches().length > 0) {
+                possibleMoves = true;
+              }
+              // Swap them back to restore the original board state
+              swapGems({ row: r, col: c }, { row: r + 1, col: c });
+              if (possibleMoves) break; // Found a move, no need to check further
+            }
+          }
+          if (possibleMoves) break; // Found a move in this row, move to next row
+        }
+
+        if (!possibleMoves) {
+          showMessage("Game Over! No more moves.", 3000);
+        }
+      }
+
+      /**
+       * Resets the game to its initial state.
+       */
+      function initGame() {
+        canvas.width = BOARD_WIDTH;
+        canvas.height = BOARD_HEIGHT;
+        initBoard();
+        score = 0;
+        moves = 0;
+        scoreDisplay.textContent = score;
+        movesDisplay.textContent = moves;
+        selectedGem = null;
+        isAnimating = false;
+        drawBoard();
+        showMessage("Game Started! Match 3 or more gems.", 2500);
+      }
+
+      // Event Listeners
+      canvas.addEventListener("click", handleCanvasClick);
+      canvas.addEventListener("touchstart", handleCanvasClick, {
+        passive: false,
+      }); // Use passive: false for touch events
+      newGameButton.addEventListener("click", initGame);
+
+      // Initial setup - load images then initialize game
+      window.onload = preloadImages;
+    </script>
+  </body>
+</html>
