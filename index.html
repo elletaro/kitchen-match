@@ -55,6 +55,12 @@
         font-weight: bold;
         color: #ea087d;
       }
+      .my-info {
+        color: #df0a8e;
+        size: 9px;
+        font-display: block;
+        text-align: center;
+      }
 
       /* Canvas styling */
       canvas {
@@ -151,16 +157,13 @@
         button {
           padding: 10px 20px;
           font-size: 1em;
+          display: block;
+          align-items: center;
         }
 
         .message-box {
           font-size: 1.2em;
           padding: 15px 25px;
-        }
-
-        .my-info {
-          color: #df0a8e;
-          size: 11px;
         }
       }
     </style>
@@ -178,6 +181,7 @@
       <canvas id="gameCanvas"></canvas>
       <div class="game-buttons">
         <button id="newGameButton">RESTART</button> <br />
+        <hr />
         <div class="my-info">
           This simple HTML game was coded by
           <a href="https://github.com/elletaro" target="_blank">Chantelle</a>
