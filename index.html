@@ -157,6 +157,11 @@
           font-size: 1.2em;
           padding: 15px 25px;
         }
+
+        .my-info {
+          color: #df0a8e;
+          size: 11px;
+        }
       }
     </style>
   </head>
@@ -172,7 +177,12 @@
       </div>
       <canvas id="gameCanvas"></canvas>
       <div class="game-buttons">
-        <button id="newGameButton">RESTART</button>
+        <button id="newGameButton">RESTART</button> <br />
+        <div class="my-info">
+          This simple HTML game was coded by
+          <a href="https://github.com/elletaro">Chantelle</a> and is available
+          on <a href="https://github.com/elletaro/kitchen-match">GitHub</a>.
+        </div>
       </div>
     </div>
 
@@ -781,7 +791,10 @@
         selectedGem = null;
         isAnimating = false;
         drawBoard();
-        showMessage("Game Started! Match 3 or more objects to score.", 2500);
+        showMessage(
+          "Game Started! Match 3 or more kitchen items to score.",
+          2500
+        );
       }
 
       // Event Listeners
